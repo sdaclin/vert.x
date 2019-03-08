@@ -18,7 +18,10 @@ import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.ChannelGroupFuture;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.handler.codec.compression.ZlibCodecFactory;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.codec.http.HttpContentDecompressor;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketServerExtensionHandler;
 import io.netty.handler.codec.http.websocketx.extensions.WebSocketServerExtensionHandshaker;
 import io.netty.handler.codec.http.websocketx.extensions.compression.DeflateFrameServerExtensionHandshaker;
@@ -54,6 +57,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import static io.vertx.core.http.impl.HAProxyMessageHandler.HA_PROXY_MESSAGE_ATTRIBUTE_KEY;
 
 /**
  * This class is thread-safe
@@ -222,6 +227,11 @@ public class HttpServerImpl implements HttpServer, Closeable, MetricsProvider {
                 return;
               }
               ChannelPipeline pipeline = ch.pipeline();
+              if(options.isTcpHAProxySupport()){
+                String haProxyDecoderName = "haProxyDecoder";
+                ch.pipeline().addFirst(haProxyDecoderName, new HAProxyMessageDecoder());
+                ch.pipeline().addFirst("haProxyHandler", new HAProxyMessageHandler());
+              }
               if (sslHelper.isSSL()) {
                 ch.pipeline().addFirst("handshaker", new SslHandshakeCompletionHandler(ar -> {
                   if (ar.succeeded()) {
@@ -393,6 +403,21 @@ public class HttpServerImpl implements HttpServer, Closeable, MetricsProvider {
       pipeline.addLast("flashpolicy", new FlashPolicyHandler());
     }
     pipeline.addLast("httpDecoder", new VertxHttpRequestDecoder(options));
+    if(options.isTcpHAProxySupport()){
+      pipeline.addLast("proxyProtocolInjector", new SimpleChannelInboundHandler<HttpRequest>() {
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, HttpRequest msg) throws Exception {
+          if (ctx.channel().hasAttr(HA_PROXY_MESSAGE_ATTRIBUTE_KEY)) {
+            HAProxyMessage haProxyMessage = ctx.channel().attr(HA_PROXY_MESSAGE_ATTRIBUTE_KEY).get();
+            msg.headers().add("X-Source-Address", haProxyMessage.sourceAddress());
+            msg.headers().add("X-Destination-Address", haProxyMessage.destinationAddress());
+            msg.headers().add("X-Source-Port", haProxyMessage.sourcePort());
+            msg.headers().add("X-Destination-Port", haProxyMessage.destinationPort());
+          }
+          ctx.fireChannelRead(msg);
+        }
+      });
+    }
     pipeline.addLast("httpEncoder", new VertxHttpResponseEncoder());
     if (options.isDecompressionSupported()) {
       pipeline.addLast("inflater", new HttpContentDecompressor(true));

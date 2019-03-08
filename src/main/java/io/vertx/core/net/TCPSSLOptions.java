@@ -91,6 +91,11 @@ public abstract class TCPSSLOptions extends NetworkOptions {
    */
   public static final boolean DEFAULT_TCP_QUICKACK = false;
 
+  /**
+   * The default TCP_HAPROXY_SUPPORT value = false
+   */
+  public static final boolean DEFAULT_TCP_HAPROXY_SUPPORT = false;
+
   private boolean tcpNoDelay;
   private boolean tcpKeepAlive;
   private int soLinger;
@@ -108,6 +113,7 @@ public abstract class TCPSSLOptions extends NetworkOptions {
   private boolean tcpFastOpen;
   private boolean tcpCork;
   private boolean tcpQuickAck;
+  private boolean tcpHAProxySupport;
 
   /**
    * Default constructor
@@ -141,6 +147,7 @@ public abstract class TCPSSLOptions extends NetworkOptions {
     this.tcpFastOpen = other.isTcpFastOpen();
     this.tcpCork = other.isTcpCork();
     this.tcpQuickAck = other.isTcpQuickAck();
+    this.tcpHAProxySupport = other.isTcpHAProxySupport();
   }
 
   /**
@@ -181,6 +188,7 @@ public abstract class TCPSSLOptions extends NetworkOptions {
     tcpFastOpen = DEFAULT_TCP_FAST_OPEN;
     tcpCork = DEFAULT_TCP_CORK;
     tcpQuickAck = DEFAULT_TCP_QUICKACK;
+    tcpHAProxySupport =DEFAULT_TCP_HAPROXY_SUPPORT;
   }
 
   /**
@@ -647,6 +655,23 @@ public abstract class TCPSSLOptions extends NetworkOptions {
   public TCPSSLOptions setTcpQuickAck(boolean tcpQuickAck) {
     this.tcpQuickAck = tcpQuickAck;
     return this;
+  }
+
+  /**
+   * Enable the {@code TCP_HAPROXY_SUPPORT} option.
+   *
+   * @param tcpHAProxySupport the HA proxy support value value
+   */
+  public TCPSSLOptions setTcpHAProxySupport(boolean tcpHAProxySupport) {
+    this.tcpHAProxySupport = tcpHAProxySupport;
+    return this;
+  }
+
+  /**
+   * @return wether {@code TCP_HAPROXY_SUPPORT} option is enabled
+   */
+  public boolean isTcpHAProxySupport() {
+    return tcpHAProxySupport;
   }
 
   /**
